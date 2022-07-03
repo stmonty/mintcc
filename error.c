@@ -61,4 +61,8 @@ int synch(int syn) {
         if (EOF == t) {
             fatal("found EOF in error recovery");
         }
-        t 
+        t = next();
+    }
+    Syntoken = syn;
+    return t;
+}
