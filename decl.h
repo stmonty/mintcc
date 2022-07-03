@@ -96,4 +96,20 @@ void rbrack(void);
 void reject(void);
 void rparen(void);
 void rvalue(int *lv);
+void semi(void);
+void sgen(char *s, char *inst, char *s2);
+void top(void);
 int objsize(int prim, int type, int size);
+int next(void);
+int primtype(int t);
+int rexpr(void);
+int scan(void);
+int scanraw(void);
+int skip(void);
+int synch(int syn);
+int typematch(int p1, int p2);
+
+
+
+
+

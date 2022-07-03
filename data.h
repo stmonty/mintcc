@@ -12,7 +12,7 @@ _extern int Value;
 /* Error Handling */
 _extern int Line; // Current Input line number
 _extern int Errors; // Error counter
-_extern int Syntoken; // Scanner Synchronization
+_extern int Syntoken; // Scanner Synchronization Token
 
 _extern int Putback;
 _extern int Rejected;
