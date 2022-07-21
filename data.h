@@ -6,8 +6,8 @@ _extern FILE *Infile;
 _extern FILE *Outfile;
 
 _extern int Token;
-_extern char Text[TEXTLEN+1];
-_extern int Value;
+_extern char Text[TEXTLEN+1]; // Textual form of the token
+_extern int Value; // Value of the token
 
 /* Error Handling */
 _extern int Line; // Current Input line number
