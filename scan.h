@@ -1,6 +1,7 @@
 #include "defs.h"
 #include "data.h"
 #include "decl.h"
+#include <cstring>
 
 int next(void) {
     int c;
@@ -164,7 +165,7 @@ static int scanindent(int c, char *buf, int lim) {
 
 int skip(void) {
     int p;
-    int n1 = 0;
+    int nl = 0;
     int c = next();
 
     for (;;) {
@@ -174,9 +175,72 @@ int skip(void) {
         }
         while (' ' == c || '\t' == c || '\n' || '\r' == c || '\f' == c) {
             if ('\n' == c) {
-                n1 = 1;
+                nl = 1;
             }
             c = next();
         }
+        if (nl && c == '#') {
+            preproc();
+            c = next();
+            continue;
+        }
+        nl = 0;
+        if (c != '/') {
+            break;
+        }
+        if ((c = next()) != '*') {
+            putback(c);
+            c = '/';
+            break;
+        }
+        p = 0;
+        while ((c = next()) != EOF) {
+            if ('/' == c && '*' == p) {
+                c = next();
+                break;
+                
+            }
+            p = c;
+        }
+    }
+    return c;
+}
+
+static int keyword(char *s) {
+    switch (*s) {
+        // Preprocessor Definitions
+    case '#':
+        switch (s[1]) {
+        case 'd':
+            if (!strcmp(s, "#define")) {
+                return P_DEFINE;
+            } 
+            break;
+        case 'e':
+            if (!strcmp(s, "#else")) {
+                return P_ELSE;
+            }
+            if (!strcmp(s, "#endif")) {
+                return P_ENDIF;
+            }
+            break;
+        case "i":
+            if (!strcmp(s, "#ifdef")) {
+                return P_IFDEF;
+            }
+            if (!strcmp(s, "#ifndef")) {
+                return P_IFNDEF;
+            }
+            if (!strcmp(s, "#include")) {
+                return P_INCLUDE;
+            }
+            break;
+        case 'u':
+            if (!strcmp(s, "#undef")) {
+                return P_UNDEF;
+            }
+            break;
+        }
     }
 }
+
