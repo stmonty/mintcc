@@ -241,6 +241,95 @@ static int keyword(char *s) {
             }
             break;
         }
+        break;
+    case 'b':
+        if (!strcmp(s, "break")) {
+            return BREAK;
+        }
+        break;
+    case 'c':
+        if (!strcmp(s, "case")) {
+            return CASE;
+        }
+        if (!strcmp(s, "char")) {
+            return CHAR;
+        }
+        if (!strcmp(s, "continue")) {
+            return CONTINUE;
+        }
+        break;
+    case 'd':
+        if (!strcmp(s, "default")) {
+            return DEFAULT;
+        }
+        if (!strcmp(s, "do")) {
+            return DO;
+        } 
+        break;
+    case 'e':
+        if (!strcmp(s, "else")) {
+            return ELSE;
+        }
+        if (!strcmp(s, "enum")) {
+            return ENUM;
+        }
+        if (!strcmp(s, "EXTERN")) {
+            return EXTERN;
+        }
+        break;
+    case 'f':
+        if (!strcmp(s, "for")) {
+            return FOR;
+        }
+    case 'i':
+        if (!strcmp(s, "if")) {
+            return IF;
+        }
+        if (!strcmp(s, "int")) {
+            return INT;
+        }
+        break;
+    case 'r':
+        if (!strcmp(s, "return")) {
+            return RETURN;
+        }
+        break;
+    case 's':
+        if (!strcmp(s, "sizeof")) {
+            return SIZEOF;
+        }
+        if (!strcmp(s, "static")) {
+            return STATIC;
+        }
+        if (!strcmp(s, "switch")) {
+            return SWITCH;
+        }
+        break;
+    case 'v':
+        if (!strcmp(s, "void")) {
+            return VOID;
+        }
+        break;
+    case 'w':
+        if (!strcmp(s, "while")) {
+            return WHILE;
+        }
+        break;
+    case '_':
+        if (!strcmp(s, "__argc")) {
+            return __ARGC;
+        }
+        break;
     }
+    return 0;
 }
 
+static int macro(char *name) {
+    int y;
+    y = findmac(name);
+    if (!y || Types[y] != TMACRO) {
+        return 0;
+    }
+    playmac(Mtext[y]);
+    return 1;
+}
