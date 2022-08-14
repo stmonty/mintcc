@@ -333,3 +333,273 @@ static int macro(char *name) {
     playmac(Mtext[y]);
     return 1;
 }
+
+static int scanpp(void) {
+    int i;
+    int c;
+    int t;
+    if (Rejected != -1) {
+        t = Rejected;
+        Rejected = -1;
+        strcpy(Text, Rejtext);
+        Value = Rejval;
+        return t;
+    }
+    for (;;) {
+        Value = 0;
+        c = skip();
+        memset(Text, 0, 4);
+        Text[0] = c;
+        switch (c) {
+        case '!':
+            if ((c = next()) == '=') {
+                Text[1] = '=';
+                return NOTEQ;
+            }
+            else {
+                putback(c);
+                return XMARK;
+            }
+        case '%':
+            if ((c = next()) == '=') {
+                Text[1] = '=';
+                return ASMOD;
+            }
+            else {
+                putback(c);
+                return MOD;
+            }
+        case '&':
+            if ((c = next()) == '&') {
+                Text[1] = '&';
+                return LOGAND;
+            }
+            else if ('=' == c) {
+                Text[1] = '=';
+                return ASAND;
+            }
+            else {
+                putback(c);
+                return AMPER;
+            }
+        case '(':
+            return LPAREN;
+        case ')':
+            return RPAREN;
+        case '*':
+            if ((c = next()) == '=') {
+                Text[1] = '=';
+                return ASMUL;
+            }
+            else {
+                putback(c);
+                return STAR;
+            }
+        case '+':
+            if ((c = next()) == '+') {
+                Text[1] = '+';
+                return INCR;
+            }
+            else if ('=' == c) {
+                Text[1] = '=';
+                return ASPLUS;
+            }
+            else {
+                putback(c);
+                return PLUS;
+            }
+        case ',':
+            return COMMA;
+        case '-':
+            if ((c = next()) == '-') {
+                Text[1] = '-';
+                return DECR;
+            }
+            else if ('=' == c) {
+                Text[1] = '=';
+                return ASMINUS;
+            }
+            else {
+                putback(c);
+                return MINUS;
+            }
+        case '/':
+            if ((c = next()) == '=') {
+                Text[1] = '=';
+                return ASDIV;
+            }
+            else {
+                putback(c);
+                return SLASH;
+            }
+        case ':':
+            return COLON;
+        case ';':
+            return SEMI;
+        case '<':
+            if ((c = next()) == '<') {
+                Text[1] = '<';
+                if ((c = next()) == '=') {
+                    Text[2] = '=';
+                    return ASLSHIFT;
+                }
+                else {
+                    putback(c);
+                    return LSHIFT;
+                }
+            }
+            else if ('=' == c) {
+                Text[1] = '=';
+                return LTEQ;
+            }
+            else {
+                putback(c);
+                return LESS;
+            }
+        case '=':
+            if ((c = next()) == '=') {
+                Text[1] = '=';
+                return EQUAL;
+            }
+            else {
+                putback(c);
+                return ASSIGN;
+            }
+        case '>':
+            if ((c = next()) == '>') {
+                Text[1] = '>';
+                if ((c = next()) == '=') {
+                    return ASRSHIFT;
+                }
+                else {
+                    putback(c);
+                    return RSHIFT;
+                }
+            }
+            else if ('=' == c) {
+                Text[1] = '=';
+                return GTEQ;
+            }
+            else {
+                putback(c);
+                return GREATER;
+            }
+        case '?':
+            return QMARK;
+        case '[':
+            return LBRACK;
+        case ']':
+            return RBRACK;
+        case '^':
+            if ((c = next()) == '=') {
+                Text[1] = '=';
+                return ASXOR;
+            }
+            else {
+                putback(c);
+                return CARET;
+            }
+        case '{':
+            return LBRACE;
+        case '|':
+            if ((c = next()) == '|') {
+                Text[1] = '|';
+                return LOGOR;
+            }
+            else if (c == '=') {
+                Text[1] = '=';
+                return ASOR;
+            }
+            else {
+                putback(c);
+                return PIPE;
+            }
+        case '}':
+            return RBRACE;
+        case '~':
+            return TILDE;
+        case EOF:
+            strcpy(Text, "<EOF>");
+            return XEOF;
+        case '\'':
+            Text[1] = Value = scanch();
+            if ((c = next()) != '\'') {
+                error("expected '\\'' at end of char literal", NULL);
+            }
+            Text[2] = '\'';
+            return INTLIT;
+        case '"':
+            Value = scanstr(Text);
+            return STRLIT;
+        case '#':
+            Text[0] = '#';
+            scanident(next(), &Text[1], TEXTLEN - 1);
+            if ((t = keyword(Text)) != 0) {
+                return t;
+            }
+            error("unknown preprocessor command: %s", Text);
+            return IDENT;
+        case '.':
+            for (i = 1; i < 3; i++) {
+                Text[i] = next();
+            }
+            Text[i] = 0;
+            if (strcmp(Text, "...")) {
+                error("malformed ellipsis: '%s'", Text);
+            }
+            return ELLIPSIS;
+        default:
+            if (isdigit(c)) {
+                Value = scanint(c);
+                return INTLIT;
+            }
+            else if (isalpha(c) || '_' == c) {
+                Value = scanident(c, Text, TEXTLEN);
+                if (Expandmac && macro(Text)) {
+                    break;
+                }
+                if ((t = keyword(Text)) != 0) {
+                    return t;
+                }
+                return IDENT;
+            }
+            else {
+                cerror("funny input character: %s", c);
+                break;
+            }
+        }
+    }
+}
+
+int scan(void) {
+    int t;
+    do {
+        t = scanpp();
+        if (!Inclev && Isp && XEOF == t) {
+            fatal("missing #endif at EOF");
+        }
+    } while (frozen(1));
+    if (t == Syntoken) {
+        Syntoken = 0;
+    }
+    return t;
+}
+
+int scanraw(void) {
+    int t;
+    int oisp;
+    oisp = Isp;
+    Isp = 0;
+    Expandmac = 0;
+    t = scan();
+    Expandmac = 1;
+    Isp = oisp;
+    return t;
+}
+
+/* Puts the current token into the reject queue */
+void reject(void) {
+    Rejected = Token;
+    Rejval = Value;
+    strcpy(Rejtext, Text);
+}
