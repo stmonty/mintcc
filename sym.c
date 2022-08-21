@@ -79,8 +79,50 @@ char *locname(char *s) {
     return &Nlist[p];
 }
 
+static void defglob(char *name, int prim, int type, int size,
+                    int val, int scls, int init) {
+    if (TCONSTANT == type || TFUNCTION == type) {
+        return;
+    }
+    gendata();
+    if (CPUBLIC == scls) {
+        genpublic(name);
+    }
+    if (init && TARRAY == type) {
+        return;
+    }
+    if (TARRAY != type) {
+        genname(name);
+    }
+    if (PCHAR == prim) {
+        if (TARRAY == type) {
+            genbss(gsym(name), size);
+        } else {
+            gendefb(val);
+        }
+    }
+    else if (PINT == prim) {
+        if (TARRAY == type) {
+            genbss(gsym(name), size * INTSIZE);
+        } else {
+            gendefw(val);
+        }
+    } else {
+        if (TARRAY == type) {
+            genbss(gsym(name), size * PTRSIZE);
+        } else {
+            gendefp(val);
+        }
+    }
+}
 
-
-
-
-
+int addglob(char *name, int prim, int type, int scls, int size,
+            int val, char *mtext, int init) {
+    
+    int y;
+    if ((y = findglob(name)) != 0) {
+        if (Stcls[y] != CEXTERN) {
+            error("Redefiniton of: %s", name);
+        }
+    }
+}
