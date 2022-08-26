@@ -59,7 +59,7 @@
 #define CPUBLIC 1
 #define CEXTERN 2
 #define CSTATIC 3
-#define CLSTATIC 4
+#define CLSTATC 4
 #define CAUTO 5
 
 #define LVSYM 0
