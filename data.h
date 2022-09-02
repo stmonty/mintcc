@@ -1,3 +1,8 @@
+/*
+ * MintCC : Minimal Toy C Compiler
+ * data.h : Global Variables
+ *
+ */
 #ifndef _extern
  #define _extern extern
 #endif
@@ -64,9 +69,9 @@ _extern char *Files[MAXFILES]; // Files for linker
 _extern int Nf; // Number of files
 
 /* Option Flags */
-_extern int O_verbose; // -v
-_extern int O_componly; // -c
-_extern int O_asmonly; // -S
-_extern int O_testonly; // -t
-_extern int O_debug; // -d
-_extern char *O_outfile; // -o
+_extern int O_verbose; // -v verbose
+_extern int O_componly; // -c compile only--do not link
+_extern int O_asmonly; // -S generate assembly output only
+_extern int O_testonly; // -t test only
+_extern int O_debug; // -d enable debug option
+_extern char *O_outfile; // -o name the output file

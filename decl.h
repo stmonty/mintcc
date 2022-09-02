@@ -1,3 +1,8 @@
+/*
+ * MintCC : Minimal Toy C Compiler
+ * decl.h : Function Declarations
+ *
+ */
 int addglob(char *name, int prim, int ttype, int scls,
             int size, int val, char *mval, int init);
 

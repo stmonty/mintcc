@@ -1,3 +1,8 @@
+/*
+ * MintCC : Minimal Toy C Compiler
+ * error.c : Error Handling
+ *
+ */
 #include "defs.h"
 #include "data.h"
 #include "decl.h"

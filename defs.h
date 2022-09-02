@@ -3,6 +3,9 @@
 #include <string.h>
 #include <ctype.h>
 
+#define W64
+//#define HOSTLIB
+
 #define PREFIX  'C'
 #define LPREFIX 'L'
 
@@ -10,11 +13,22 @@
  #define SCCDIR "."
 #endif
 
-#define ASCMD "as -o %s %s" // Assemble the output of the compiler
-#define LDCMD "ld -o %s %s/lib/crt0.o" // Invokes the system linker
+#ifdef W64
+  #define LDCMD "ld -m elf_i386_fbsd -o %s %s/lib/crt0.o"
+  #define SYSLIBC "/usr/lib32/libc.a"
+#else
+  #define LDCMD "ld -o %s %s/lib/crt0.o" // Invokes the system linker
+  #define SYSLIBC "/usr/lib/libc.a"
 // ld -o output-file SCCDIR/lib/crt0.o ... SCCLIBC SYSLIBC
+#endif
+
+#define ASCMD "as -32 -o %s %s" // Assemble the output of the compiler
 #define SCCLIBC "%s/lib/libscc.a"
-#define SYSLIBC "/usr/lib/libc.a"
+
+#ifndef HOSTLIB
+  #undef SYSLIBC
+  #define SYSLIBC  ""
+#endif
 
 #define INTSIZE 4
 #define PTRSIZE INTSIZE
