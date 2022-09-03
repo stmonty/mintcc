@@ -1,3 +1,8 @@
+/*
+ * MintCC : Minimal Toy C Compiler
+ * scan.h : Scanner
+ *
+ */
 #include "defs.h"
 #include "data.h"
 #include "decl.h"
