@@ -138,7 +138,55 @@ static int fnargs(int fn) {
             if (!typematch(*types, lv[LVPRIM])) {
                 sprintf(msg, "Wrong type in argument %d of call to:"
                         " %%s", na + 1);
+                error(msg, Names[fn]);
             }
+            types++;
+        }
+        if (na < MAXFNARGS) {
+            sgn[na] = lv[LVPRIM], sgn[na + 1] = 0;
+        }
+        na++;
+        if (COMMA == Token) {
+            Token = scan();
+        } else {
+            break;
+        }
+    }
+    if (fn && TFUNCTION == Types[fn] && !Mtext[fn]) {
+        Mtext[fn] = globname(sgn);
+    }
+    rparen();
+    genpushlit(na);
+    return na;
+}
+
+static int indirection(int indirection_level, int *lv) {
+    if (indirection_level) rvalue(lv);
+    if (INTPP == lv[LVPRIM]) {
+        lv[LVPRIM] = INTPTR;
+    }
+    else if (CHARPP == lv[LVPRIM]) {
+        lv[LVPRIM] = CHARPTR;
+    }
+    else if (VOIDPP == lv[LVPRIM]) {
+        lv[LVPRIM] = VOIDPTR;
+    }
+    else if (INTPTR == lv[LVPRIM]) {
+        lv[LVPRIM] = PINT;
+    }
+    else if (CHARPTR == lv[LVPRIM]) {
+        lv[LVPRIM] = PCHAR;
+    }
+    else if (VOIDPTR == lv[LVPRIM]) {
+        error("Dereferencing void pointer", NULL);
+        lv[LVPRIM] = PCHAR;
+    }
+    else if (FUNPTR == lv[LVPRIM]) {
+        lv[LVPRIM] = PCHAR;
+    }
+    else {
+        if (lv[LVSYM]) {
+            error("Indirection though non-pointer: %s")
         }
     }
 }

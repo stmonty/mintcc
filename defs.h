@@ -76,9 +76,14 @@
 #define CLSTATC 4
 #define CAUTO 5
 
-#define LVSYM 0
-#define LVPRIM 1
+/* LV (lvalue) is a pseudo-struct represented through symbolic 
+ * array subscripts. Therefore the LVstruct is defined by
+ * int lv[LV];
+ * Access members using lv[LVSYM] and lv[LVPRIM]
+ */
 #define LV 2
+#define LVSYM 0 //Slot number of symbol table entry - 0 for non-identifier
+#define LVPRIM 1 //Primitive type of the matched object
 
 /* Debug Options */
 #define D_LSYM 1
