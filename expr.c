@@ -186,7 +186,52 @@ static int indirection(int indirection_level, int *lv) {
     }
     else {
         if (lv[LVSYM]) {
-            error("Indirection though non-pointer: %s")
+            error("Indirection through non-pointer: %s", Names[lv[LVSYM]]);
+        }
+        else {
+            error("Indirection through non-pointer: %s", NULL);
+        }
+    }
+    lv[LVSYM] = 0;
+    return lv[LVPRIM];
+}
+
+/* badcall(): Reports a call to a non-function */
+static void badcall(int *lv) {
+    if (lv[LVSYM]) {
+        error("Call of non-function: %s", Names[lv[LVSYM]]);
+    }
+    else {
+        error("Call of non-function", NULL);
+    }
+}
+
+static int argsok(int na, int nf) {
+    return na == nf || nf < 0 && na >= -nf - 1;
+}
+
+/* postfix(): function accepts all unary postfix operators
+ * postfix :=
+ *           primary
+ *         | postfix [ expr ]
+ *         | postfix ( )
+ *         | postfix ( fnargs )
+ *         | postfix ++
+ *         | postfix --
+ *
+ */
+static int postfix(int *lv) {
+    int a = primary(lv);
+    int lv2[LV];
+    int p;
+    int na;
+    for (;;) {
+        switch (Token) {
+        case LBRACK:
+            while (LBRACK == Token) {
+                p = indirection(a, lv);
+                Token = scan();
+            }
         }
     }
 }
