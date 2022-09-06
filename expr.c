@@ -117,7 +117,7 @@ static int primary(int *lv) {
  */
 int typematch(int p1, int p2) {
     if (p1 == p2) return 1;
-    if (inttype(p1) and inttype(p2)) return 1;
+    if (inttype(p1) && inttype(p2)) return 1;
     if (!inttype(p1) && VOIDPTR == p2) return 1;
     if (VOIDPTR == p1 && !inttype(p2)) return 1;
     return 0;
@@ -231,6 +231,38 @@ static int postfix(int *lv) {
             while (LBRACK == Token) {
                 p = indirection(a, lv);
                 Token = scan();
+                if (expr(lv2)) {
+                    rvalue(lv2);
+                }
+                if (PINT != lv2[LVPRIM]) {
+                    error("Non-integer subscript", NULL);
+                }
+                if (PINT == p || INTPTR == p || CHARPTR == p || VOIDPTR == p) {
+                    genscale();
+                }
+                genadd(PINT, PINT, 1);
+                rbrack();
+                lv[LVSYM] = 0;
+                a = 1;
+            }
+            break;
+        case LPAREN:
+            Token = scan();
+            na = fnargs(lv[LVSYM]);
+            if (lv[LVSYM] && TFUNCTION == Types[lv[LVSYM]]) {
+                if (!argsok(na, Sizes[lv[LVSYM]])) {
+                    error("Wrong number of arguments: %s", Names[lv[LVSYM]]);
+                }
+                gencall(lv[LVSYM]);
+            }
+            else {
+                if (lv[LVPRIM] != FUNPTR) {
+                    badcall(lv);
+                }
+                clear();
+                rvalue(lv);
+                gencalr();
+                lv[LVPRIM] = PINT;
             }
         }
     }
