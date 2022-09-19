@@ -264,6 +264,27 @@ static int postfix(int *lv) {
                 gencalr();
                 lv[LVPRIM] = PINT;
             }
+            genstack((na + 1) * INTSIZE);
+            a = 0;
+            break;
+        case INCR:
+        case DECR:
+            if (a) {
+                if (INCR == Token) {
+                    geninc(lv, 1, 0);
+                }
+                else {
+                    geninc(lv, 0, 0);
+                }
+            }
+            else {
+                error("LValue required before %s", Text);
+            }
+            Token = scan();
+            a = 0;
+            break;
+        default:
+            return a;
         }
     }
 }
