@@ -288,3 +288,431 @@ static int postfix(int *lv) {
         }
     }
 }
+
+
+/*
+ * prefix :=
+ *          postfix
+ *        | ++ prefix
+ *        | -- prefix
+ *        | & cast
+ *        | * cast
+ *        | + cast
+ *        | - cast
+ *        | ~ cast
+ *        | ! cast
+ *        | SIZEOF ( primtype )
+ *        | SIZEOF ( primtype * )
+ *        | SIZEOF ( primtype * * )
+ *        | SIZEOF ( INT ( * ) ( ) )
+ *        | SIZEOF ( primtype * )
+ *        | SIZEOF ( IDENT )
+ *
+ * primtype :=
+ *            INT
+ *          | CHAR
+ *          | VOID
+ *
+ */
+
+static int prefix(int *lv) {
+    int k;
+    int y;
+    int t;
+    int a;
+
+    switch(Token) {
+    case INCR:
+    case DECR:
+        t = Token;
+        Token = scan();
+        if (prefix(lv)) {
+            if (INCR == t) {
+                geninc(lv, 1, 1);
+            }
+            else {
+                geninc(lv, 0, 1);
+            }
+        }
+        else {
+            error("LValue expected after '%s'", t == INCR ? "++": "--");
+        }
+        return 0;
+    case STAR:
+        Token = scan();
+        a = cast(lv);
+        indirection(a, lv);
+        return 1;
+    case PLUS:
+        Token = scan();
+        if (cast(lv)) {
+            rvalue(lv);
+        }
+        if (!inttype(lv[LVPRIM])) {
+            error("Bad Operand to unary '+'", NULL);
+        }
+        return 0;
+    case MINUS:
+        Token = scan();
+        if (cast(lv)) {
+            rvalue(lv);
+        }
+        if (!inttype(lv[LVPRIM])) {
+            error("Bad Operand to unary '-'", NULL);
+        }
+        genneg();
+        return 0;
+    case TILDE:
+        Token = scan();
+        if (cast(lv)) {
+            rvalue(lv);
+        }
+        if (!inttype(lv[LVPRIM])) {
+            error("Bad Operand to unary '~'", NULL);
+        }
+        gennot();
+        return 0;
+    case XMARK:
+        Token = scan();
+        if (cast(lv)) {
+            rvalue(lv);
+        }
+        genlognot();
+        lv[LVPRIM] = PINT;
+        return 0;
+    case AMPER:
+        Token = scan();
+        if (!cast(lv)) {
+            error("LValue expected after unary '&'", NULL);
+        }
+        if (lv[LVSYM]) {
+            genaddr(lv[LVSYM]);
+        }
+        lv[LVPRIM] = pointerto(lv[LVPRIM]);
+        return 0;
+    case SIZEOF:
+        Token = scan();
+        lparen();
+        if(CHAR == Token || INT == Token || VOID == Token) {
+            k = CHAR == Token ? CHARSIZE : INT == Token ? INTSIZE: 0;
+            Token = scan();
+            if (STAR == Token) {
+                k = PTRSIZE;
+                Token = scan();
+                if (STAR == Token) {
+                    Token = scan();
+                }
+            }
+            else if (k == 0) {
+                error("Cannot take sizeof(void)", NULL);
+            }
+        }
+        else if (IDENT == Token) {
+            y = findloc(Text);
+            if (!y) {
+                y = findglob(Text);
+            }
+            if (!y || !(k = objsize(Prims[y], Types[y], Sizes[y]))) {
+                error("Cannot take sizeof object : %s", Text);
+            }
+            Token = scan();
+        }
+        else {
+            error("Cannot take sizeof object : %s", Text);
+            Token = scan();
+        }
+        genlit(k);
+        rparen();
+        lv[LVPRIM] = PINT;
+        return 0;
+    default:
+        return postfix(lv);
+    }
+}
+
+/* 
+ * cast() : Handles type casts
+ * 
+ * cast :=
+ *        prefix
+ *      | ( primtype ) prefix
+ *      | ( primtype * )  prefix
+ *      | ( primtype * * )  prefix
+ *      | ( INT ( * ) ( ) )  prefix
+ *
+ */
+int cast(int *lv) {
+    int t;
+    int a;
+    if (LPAREN == Token) {
+        Token = scan();
+        if (INT == Token) {
+            t = PINT;
+            Token = scan();
+        }
+        else if (CHAR == Token) {
+            t = PCHAR;
+            Token = scan();
+        }
+        else if (VOID == Token) {
+            t = PVOID;
+            Token = scan();
+        }
+        else {
+            reject();
+            Token = LPAREN;
+            strcpy(Text, "(");
+            return prefix(lv);
+        }
+        if (PINT == t && LPAREN == Token) {
+            Token = scan();
+            match(STAR, "int(*) ())");
+            rparen();
+            lparen();
+            rparen();
+            t = FUNPTR;
+        }
+        else if (STAR == Token) {
+            t = pointerto(t);
+            Token = scan();
+            if (STAR == Token) {
+                t = pointerto(t);
+                Token = scan();
+            }
+        }
+        rparen();
+        a = prefix(lv);
+        lv[LVPRIM] = t;
+        return a;
+    }
+    else {
+        return prefix(lv);
+    }
+}
+
+
+static int binexpr(int *lv) {
+    int ops[9];
+    int prs[10];
+    int sp = 0;
+
+    int a = cast(lv);
+    int a2 = 0;
+    int lv2[LV];
+
+    prs[0] = lv[LVPRIM];
+    while (SLASH == Token || STAR == Token || MOD == Token ||
+           PLUS == Token || MINUS == Token || LSHIFT == Token ||
+           RSHIFT == Token || GREATER == Token || GTEQ == Token ||
+           LESS == Token || LTEQ == Token || EQUAL == Token ||
+           NOTEQ == Token || AMPER == Token || CARET == Token ||
+           PIPE == Token) {
+        if (a) {
+            rvalue(lv);
+        }
+        if (a2) {
+            rvalue(lv2);
+        }
+        while (sp > 0 && Prec[Token] <= Prec[ops[sp-1]]) {
+            prs[sp - 1] = genbinop(ops[sp-1], prs[sp-1], prs[sp]);
+            sp--;
+        }
+        ops[sp++] = Token;
+        Token = scan();
+        a2 = cast(lv2);
+        prs[sp] = lv2[LVPRIM];
+        a = 0;
+    }
+    if (a2) {
+        rvalue(lv2);
+    }
+    while (sp > 0) {
+        prs[sp - 1] = genbinop(ops[sp-1], prs[sp-1], prs[sp]);
+        sp--;
+    }
+    lv[LVPRIM] = prs[0];
+    return a;
+}
+
+/*
+ * cond2() : Handles logical "&&" and "||"
+ * Notably handles short-circuit evaluation
+ *
+ * logand :=
+ *         binexpr
+ *       | logand && binexpr
+ *
+ * logor  :=
+ *         logand
+ *       | logor || logand 
+ *
+ */
+static int cond2(int *lv, int op) {
+    int a;
+    int a2 = 0;
+    int lv2[LV];
+    int lab = 0;
+
+    a = op == LOGOR ? cond2(lv, LOGAND) : binexpr(lv);
+
+    while (Token == op) {
+        if (!lab) {
+            lab = label();
+        }
+        if (a) {
+            rvalue(lv);
+        }
+        if (a2) {
+            rvalue(lv2);
+        }
+        if (op == LOGOR) {
+            genbrtrue(lab);
+        }
+        else {
+            genbrfalse(lab);
+        }
+        clear();
+        Token = scan();
+        a2 = op == LOGOR ? cond2(lv2, LOGAND) : binexpr(lv2);
+        a = 0;
+    }
+    if (lab) {
+        if (a2) {
+            rvalue(lv2);
+        }
+        genlab(lab);
+        genbool();
+        load();
+    }
+    return a;
+}
+
+/*
+ * cond3() : Handles ternary operator
+ *
+ * condexpr :=
+ *           logor
+ *         | logor ? expr : condexpr
+ *
+ */
+static int cond3(int *lv) {
+    int lv2[LV];
+    int p = 0;
+    int l1 = 0;
+    int l2 = 0;
+
+    int a = cond2(lv, LOGOR);
+    while (QMARK == Token) {
+        l1 = label();
+        if (!l2) {
+            l2 = label();
+        }
+        if (a) {
+            rvalue(lv);
+        }
+        a = 0;
+        genbrfalse(l1);
+        clear();
+        Token = scan();
+
+        if (expr(lv)) {
+            rvalue(lv);
+        }
+        if (!p) {
+            p = lv[LVPRIM];
+        }
+        if (!typematch(p, lv[LVPRIM])) {
+            error("Incompatible types in '?:'", NULL);
+        }
+        genjump(l2);
+        genlab(l1);
+        clear();
+        colon();
+        if (cond2(lv2, LOGOR)) {
+            rvalue(lv2);
+        }
+        if (QMARK != Token) {
+            if (!typematch(p, lv[LVPRIM])) {
+                error("Incompatible types in '?:'", NULL);
+            }
+        }
+    }
+    if (l2) {
+        genlab(l2);
+        load();
+    }
+    return a;
+}
+
+/*
+ * asgmnt() : Handles assignment of values
+ *
+ *
+ */
+int asgmnt(int *lv) {
+    int lv2[LV];
+    int op;
+
+    int a = cond3(lv);
+    if (ASSIGN == Token || ASDIV == Token || ASMUL == Token ||
+        ASMOD == Token || ASPLUS == Token || ASPLUS == Token ||
+        ASLSHIFT == Token || ASRSHIFT == Token || ASAND == Token ||
+        ASXOR == Token || ASOR == Token) {
+        op = Token;
+        Token = scan();
+        if (ASSIGN != op && !lv[LVSYM]) {
+            genpush();
+            genind(lv[LVPRIM]);
+        }
+        if (asgmnt(lv2)) {
+            rvalue(lv2);
+        }
+        if (ASSIGN == op) {
+            if (!typematch(lv[LVPRIM], lv2[LVPRIM])) {
+                error("Incompatible types in assignment", NULL);
+            }
+        }
+        if (a) {
+            genstore(op, lv, lv2);
+        }
+        else {
+            error("Lvalue expected in assignment", Text);
+        }
+        a = 0;
+    }
+    return a;
+}
+
+/*
+ * expr() : Handles any C expression
+ *
+ * expr :=
+ *        asgmnt
+ *      | asgmnt ,  expr 
+ *
+ */
+int expr(int *lv) {
+    int a = asgmnt(lv);
+    int a2 = 0;
+    int lv2[LV];
+
+    while (COMMA == Token) {
+        Token = scan();
+        clear();
+        a2 = asgmnt(lv2);
+        a = 0;
+    }
+
+    if (a2) {
+        rvalue(lv2);
+    }
+    return a;
+}
+
+int rexpr(void) {
+    int lv[LV];
+    if (expr(lv)) {
+        rvalue(lv);
+    }
+    return lv[LVPRIM];
+}
