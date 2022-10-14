@@ -10,7 +10,7 @@
 
 void stmt(void);
 
-void compount(int lbr) {
+void compound(int lbr) {
     if (lbr) {
         Token = scan();
     }
@@ -162,8 +162,7 @@ static void return_stmt(void) {
         if (!typematch(lv[LVPRIM], Prims[Thisfn])) {
             error("Incompatible type in 'return'", NULL);
         }
-    }
-    else {
+    } else {
         if (Prims[Thisfn] != PVOID) {
             error("Missing value after 'return'", NULL);
         }
@@ -189,12 +188,99 @@ static void switch_block(void) {
         if (eofcheck()) {
             return;
         }
-        if ((CASE == Token || DEFAULT == Token && nc >= MAXCASE )) {
+        if ((CASE == Token || DEFAULT == Token && nc >= MAXCASE)) {
             error("Too many 'case's in switch statement", NULL);
             nc = 0;
         }
         if (CASE == Token) {
-            
+            Token = scan();
+            cval[nc] = constexpr();
+            genlab(clab[nc++] = label());
+            colon();
+        } else if (DEFAULT == Token) {
+            Token = scan();
+            ldflt = label();
+            genlab(ldflt);
+            colon();
+        } else {
+            stmt();
         }
     }
+    if (!nc) {
+        if (ldflt) {
+            cval[nc] = 0;
+            clab[nc++] = ldflt;
+        } else {
+            error("Empty switch", NULL);
+        }
+    }
+    genjump(lb);
+    genlab(ls);
+    genswitch(cval, clab, nc, ldflt ? ldflt : lb);
+    gentext();
+    genlab();
+    Token = scan();
+    Bsp--;
+}
+
+static void switch_stmt(void) {
+    Token = scan();
+    lparen();
+    rexpr();
+    clear();
+    if (Token != LBRACE) {
+        error("'{' token expected after 'switch'", NULL);
+    }
+    switch_block();
+}
+
+static void while_stmt(void) {
+    int lb;
+    int lc;
+    Token = scan();
+    pushbreak(lb = label());
+    pushcont(lc = label());
+    genlab(lc);
+    lparen();
+    rexpr();
+    clear();
+    genbrfalse(lb);
+    rparen();
+    stmt();
+    genjump(lc);
+    genlab(lb);
+    Bsp--;
+    Csp--;
+}
+
+void wrong_ctx(int t) {
+    if (DEFAULT == t) {
+        error("Default not in switch context", NULL);
+        Token = scan();
+        colon();
+    }
+    else {
+        error("case not in switch context", NULL);
+        Token = scan();
+        constexpr();
+        colon();
+    }
+}
+
+void stmt(void) {
+    switch (Token) {
+    case BREAK: break_stmt(); break;
+    case CONTINUE: continue_stmt(); break;
+    case DO: do_stmt(); break;
+    case FOR: for_stmt(); break;
+    case RETURN: if_stmt(); break;
+    case SWITCH: switch_stmt(); break;
+    case WHILE: while_stmt(); break;
+    case LBRACE: compound(1); break;
+    case SEMI: Token = scan(); break;
+    case DEFAULT: wrong_ctx(DEFAULT); break;
+    case CASE: wrong_ctx(CASE); break;
+    default: rexpr(); semi(); break;
+    }
+    clear();
 }
