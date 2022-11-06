@@ -1,6 +1,6 @@
 /*
  * MintCC : Minimal Toy C Compiler
- * prep.c : Built-In Preprocessor
+ * prep.c : Built-in Preprocessor
  *
  */
 
@@ -138,6 +138,75 @@ static void ifdef(int expect) {
     }
     else {
         Ifdefstk[Isp++] = P_IFNDEF;
+    }
+}
+
+static void p_else(void) {
+    if (!Isp) {
+        error("'#else' without matching '#ifdef'", NULL);
+    }
+    else if (frozen(2))
+        ;
+    else if (P_IFDEF == Ifdefstk[Isp - 1]) {
+        Ifdefstk[Isp - 1] = P_ELSENOT;
+    }
+    else if (P_IFNDEF == Ifdefstk[Isp - 1]) {
+        Ifdefstk[Isp - 1] = P_ELSE;
+    }
+    else {
+        error("'#else' without matching '#ifdef'", NULL)
+    }
+}
+
+static void endif(void) {
+    if (!Isp)
+        error("'#endif' without matching '#ifdef'", NULL);
+    else
+        Isp--;
+}
+
+/*
+ * junkln : Reads a line from input file and throws it away
+ * Used to discard preprocessor arguments if frozen.
+ *
+ */
+static void junkln(void) {
+    while (!feof(Infile) && fgetc(Infile) != '\n') {
+        Line++;
+    }
+}
+
+/*
+ * frozen : Checks whether the depth'th element
+ * is in a frozen context
+ */
+int frozen(int depth) {
+    return Isp >= depth &&
+        (P_IFNDEF == Ifdefstk[Isp-depth] ||
+         P_ELSENOT == Ifdefstk[Isp-depth]);
+}
+
+void preproc(void) {
+    putback('#');
+    Token = scanraw();
+    if (frozen(1) &&
+        (P_DEFINE == Token ||
+         P_INCLUDE == Token ||
+         P_UNDEF == Token))
+        {
+            junkln();
+            return;
+        }
+    switch (Token) {
+    case  P_DEFINE: defmac(); break;
+    case P_UNDEF:   undef(); break;
+    case P_INCLUDE: include(); break;
+    case P_IFDEF:   ifdef(1); break;
+    case P_IFNDEF:  ifdef(0); break;
+    case P_ELSE:    p_else(); break;
+    case P_ENDIF:   endif(); break;
+    default:        junkln(); break;
+        break;
     }
 }
 
